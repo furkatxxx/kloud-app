@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Listing {
+  id          String   @id @default(cuid())
+  avitoId     String   @unique
+  avitoUrl    String
+  title       String
+  description String
+  price       Int
+  quantity    Int      @default(1)
+  status      String   @default("active")
+  category    String?
+  params      String?
+  photos      String?
+  lastSyncAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  snapshots       Snapshot[]
+  stats           DailyStat[]
+  recommendations Recommendation[]
+  abTests         ABTest[]
+  vasSettings     VASSettings?
+  vasHistory      VASAction[]
+  monitorAlerts   MonitorAlert[]
+}
+
+model Snapshot {
+  id          String   @id @default(cuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  title       String
+  description String
+  price       Int
+  quantity    Int
+  params      String?
+  photos      String?
+  reason      String
+  createdAt   DateTime @default(now())
+}
+
+model DailyStat {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  date      DateTime
+  views     Int      @default(0)
+  contacts  Int      @default(0)
+  favorites Int      @default(0)
+  position  Int?
+  ctr       Float?
+  source    String   @default("organic")
+  createdAt DateTime @default(now())
+
+  @@unique([listingId, date, source])
+}
+
+model Recommendation {
+  id          String    @id @default(cuid())
+  listingId   String
+  listing     Listing   @relation(fields: [listingId], references: [id])
+  ruleId      String
+  severity    String
+  title       String
+  description String
+  suggestion  String
+  newValue    String?
+  field       String?
+  impact      String
+  impactScore Int
+  status      String    @default("pending")
+  appliedAt   DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model ABTest {
+  id             String    @id @default(cuid())
+  listingId      String
+  listing        Listing   @relation(fields: [listingId], references: [id])
+  field          String
+  status         String    @default("draft")
+  rotationType   String    @default("manual")
+  rotationDays   Int       @default(7)
+  currentVariant Int       @default(0)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  variants ABVariant[]
+}
+
+model ABVariant {
+  id         String    @id @default(cuid())
+  testId     String
+  test       ABTest    @relation(fields: [testId], references: [id])
+  label      String
+  value      String
+  views      Int       @default(0)
+  contacts   Int       @default(0)
+  favorites  Int       @default(0)
+  activeDays Int       @default(0)
+  activeFrom DateTime?
+  activeTo   DateTime?
+}
+
+model VASSettings {
+  id              String   @id @default(cuid())
+  listingId       String   @unique
+  listing         Listing  @relation(fields: [listingId], references: [id])
+  bidEnabled      Boolean  @default(false)
+  bidAmount       Int?
+  bidDailyLimit   Int?
+  xlEnabled       Boolean  @default(false)
+  scheduleEnabled Boolean  @default(false)
+  schedule        String?
+  updatedAt       DateTime @updatedAt
+}
+
+model VASAction {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  action    String
+  details   String?
+  cost      Int?
+  trigger   String   @default("manual")
+  ruleId    String?
+  createdAt DateTime @default(now())
+}
+
+model AutoRule {
+  id          String    @id @default(cuid())
+  name        String
+  enabled     Boolean   @default(true)
+  condition   String
+  action      String
+  cooldownMin Int       @default(1440)
+  lastFiredAt DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model MonitorAlert {
+  id         String    @id @default(cuid())
+  listingId  String?
+  listing    Listing?  @relation(fields: [listingId], references: [id])
+  type       String
+  severity   String
+  message    String
+  resolved   Boolean   @default(false)
+  resolvedAt DateTime?
+  notifiedTg Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+}
+
+model Settings {
+  id                 String  @id @default("main")
+  avitoClientId      String?
+  avitoClientSecret  String?
+  avitoUserId        String?
+  telegramBotToken   String?
+  telegramChatId     String?
+  monitorIntervalMin Int     @default(60)
+  monitorEnabled     Boolean @default(false)
+}
